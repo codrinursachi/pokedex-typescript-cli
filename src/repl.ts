@@ -1,52 +1,40 @@
-import * as readline from "readline";
-import process from "process";
-import { commandExit } from "./command_exit.js";
-import { commandHelp } from "./command_help.js";
-import { CLICommand } from "./command.js";
+import { State } from "./state.js";
+
+export function startREPL(state: State) {
+    state.readline.prompt();
+
+    state.readline.on("line", async (input) => {
+        const words = cleanInput(input);
+        if (words.length === 0) {
+            state.readline.prompt();
+            return;
+        }
+
+        const commandName = words[0];
+
+        const cmd = state.commands[commandName];
+        if (!cmd) {
+            console.log(
+                `Unknown command: "${commandName}". Type "help" for a list of commands.`
+            );
+            state.readline.prompt();
+            return;
+        }
+
+        try {
+            cmd.callback(state);
+        } catch (e) {
+            console.log(e);
+        }
+
+        state.readline.prompt();
+    });
+}
 
 export function cleanInput(input: string): string[] {
     return input
         .toLowerCase()
         .trim()
-        .split(/\s+/)
-        .filter((word) => word.length > 0);
-}
-
-export function getCommands(): Record<string, CLICommand> {
-    return {
-        exit: {
-            name: "exit",
-            description: "Exits the pokedex",
-            callback: commandExit,
-        },
-        help: {
-            name: "help",
-            description: "Displays help information",
-            callback: commandHelp,
-        },
-    };
-}
-export function startREPL() {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-        prompt: "Pokedex > ",
-    });
-
-    rl.prompt();
-
-    rl.on("line", (line: string) => {
-        const words = cleanInput(line);
-        if (words.length === 0) {
-            rl.prompt();
-            return;
-        }
-        if (words[0] in getCommands()) {
-            const command = getCommands()[words[0]];
-            command.callback(getCommands());
-        } else {
-            console.log(`Unknown command`);
-        }
-        rl.prompt();
-    }).on("close", commandExit);
+        .split(" ")
+        .filter((word) => word !== "");
 }
